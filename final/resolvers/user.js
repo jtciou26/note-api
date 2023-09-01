@@ -8,3 +8,4 @@ module.exports = {
     return await models.Note.find({ favoritedBy: user._id }).sort({ _id: -1 });
   }
 };
+
