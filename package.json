@@ -4,8 +4,8 @@
   "description": "API code examples for JavaScript Everywhere by Adam Scott, published by O'Reilly Media",
   "main": "src/index.js",
   "engines": {
-    "npm": "6.x",
-    "node": "12.x"
+    "npm": "9.x",
+    "node": "18.x"
   },
   "scripts": {
     "start": "nodemon src/index.js",
@@ -28,7 +28,7 @@
   "license": "MIT",
   "dependencies": {
     "apollo-server-express": "2.4.0",
-    "bcrypt": "3.0.6",
+    "bcrypt": "^5.1.1",
     "cors": "2.8.5",
     "dotenv": "6.1.0",
     "express": "4.16.4",
