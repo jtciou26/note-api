@@ -1,4 +1,5 @@
 module.exports = {
+    // parent 父查詢的結果、args 使用者在查詢中傳遞的參數
     notes: async (parent, args, { models }) => {
         return await models.Note.find().limit(100);
     },
@@ -7,7 +8,7 @@ module.exports = {
         // note: (parent, args) => { return note.find(note => note.id === args.id)}
     },
     user: async (parent, { username }, { models }) => {
-        return await models.User.findOne({ username });
+        return await models.User.findOne({ username: args.username  });
     },
     users: async (parent, args, { models }) => {
         return await models.User.find({});
@@ -17,7 +18,7 @@ module.exports = {
     },
     noteFeed: async (parent, { cursor }, { models }) => {
         //硬上限 若未傳遞游標則預設查詢是空的
-        const limit = 5;
+        const limit = 10;
         let hasNextPage = false;
         let cursorQuery = {};
 

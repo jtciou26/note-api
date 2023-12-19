@@ -60,8 +60,6 @@ module.exports = {
             }
        );      
     },
-
-
     signUp: async (parent, { username, email, password }, { models }) => {
         // normalize email address
         email = email.trim().toLowerCase();
@@ -84,7 +82,6 @@ module.exports = {
         throw new Error('Error creating account');
         }
     },
-
     signIn: async (parent, { username, email, password }, { models }) => {
         if (email) {
         // normalize email address
@@ -109,7 +106,6 @@ module.exports = {
         // create and return the json web token
         return jwt.sign({ id: user._id }, process.env.JWT_SECRET);
     },
-    
     toggleFavorite: async (parent, { id }, { models, user }) => {
         if (!user) {
             throw new AuthenticationError();
