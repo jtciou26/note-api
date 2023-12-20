@@ -35,24 +35,32 @@ const getUser = token => {
       // if there's a problem with the token, throw an error
       throw new Error('Session invalid');
     }
-  }
+  };
 };
-
 // Apollo Server setup
 // updated to include `validationRules`
 const server = new ApolloServer({
   typeDefs,
   resolvers,
+  introspection: true,
+  playground: true,
   validationRules: [depthLimit(5), createComplexityLimitRule(1000)],
   context: async ({ req }) => {
+    try {
     // get the user token from the headers 從標頭取得使用者權杖
     const token = req.headers.authorization;
     // try to retrieve a user with the token 嘗試使用權杖擷取使用者
     const user = getUser(token);
     // add the db models and the user to the context 將db模型和使用者新增至context
     return { models, user };
-  }
+  } catch (error) {
+    console.error('Error in context function:', error);
+    throw error; // rethrow the error to propagate it
+  };
+}
 });
+
+
 
 // Apply the Apollo GraphQL middleware and set the path to /api
 server.applyMiddleware({ app, path: '/api' });
