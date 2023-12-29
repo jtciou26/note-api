@@ -28,11 +28,11 @@ app.use(helmet());
 app.use(cors());
 // Serve static files 
 //app.use(express.static(path.join(__dirname, 'src')));
-//app.use(express.static('public'));
 //app.use('/', express.static(__dirname, './src')
 //app.use('/static', express.static(path.join(__dirname, 'src')));
 
-app.use(express.static('src'));
+app.use('/static', express.static(path.join(__dirname, 'src')));
+
 
 // get the user info from a JWT
 const getUser = token => {
