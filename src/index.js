@@ -27,7 +27,13 @@ app.use(helmet());
 // CORS middleware
 app.use(cors());
 // Serve static files 
-app.use(express.static(path.join(__dirname, '.')));
+//app.use(express.static(path.join(__dirname, 'src')));
+//app.use(express.static('public'));
+//app.use(express.static(__dirname))
+//app.use('/', express.static(__dirname, './src')
+//app.use('/static', express.static(path.join(__dirname, 'src')));
+
+app.use(express.static(__dirname));
 
 // get the user info from a JWT
 const getUser = token => {
