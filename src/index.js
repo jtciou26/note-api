@@ -1,10 +1,12 @@
 const express = require('express');
+const path = require('path');
 const { ApolloServer } = require('apollo-server-express');
 const jwt = require('jsonwebtoken');
 const helmet = require('helmet');
 const cors = require('cors');
 const depthLimit = require('graphql-depth-limit');
 const { createComplexityLimitRule } = require('graphql-validation-complexity');
+
 require('dotenv').config();
 
 const db = require('./db');
@@ -24,6 +26,8 @@ db.connect(DB_HOST);
 app.use(helmet());
 // CORS middleware
 app.use(cors());
+// Serve static files from the 'js' folder
+app.use('/static', express.static(path.join(__dirname, 'js')));
 
 // get the user info from a JWT
 const getUser = token => {
@@ -35,7 +39,7 @@ const getUser = token => {
       // if there's a problem with the token, throw an error
       throw new Error('Session invalid');
     }
-  };
+  }
 };
 // Apollo Server setup
 // updated to include `validationRules`
@@ -60,12 +64,10 @@ const server = new ApolloServer({
 }
 });
 
-
-
 // Apply the Apollo GraphQL middleware and set the path to /api
 server.applyMiddleware({ app, path: '/api' });
 
-app.listen({ port }, () =>
+app.listen(port, () =>
   console.log(
     `GraphQL Server running at http://localhost:${port}${server.graphqlPath}`
   )
