@@ -7,6 +7,7 @@ module.exports = gql`
         id: ID!
         content: String!
         author: User!
+        isRemoved: Boolean
         createdAt: DateTime!
         updatedAt: DateTime!
         favoriteCount: Int!
@@ -26,6 +27,7 @@ module.exports = gql`
         notes: [Note]!
         cursor: String!
         hasNextPage: Boolean!
+        isRemoved: Boolean
     }
 
     type Query {

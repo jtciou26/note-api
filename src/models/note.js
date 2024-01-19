@@ -13,11 +13,15 @@ const noteSchema = new mongoose.Schema(
       ref: 'User',
       required: true
     },
-    favoriteCount:{
+    favoriteCount: {
       type: Number,
       default: 0
     },
-    favoritedBy:[ 
+    isRemoved: {
+      type: Boolean,
+      default: () => false
+    },
+    favoritedBy: [ 
     {  
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User'

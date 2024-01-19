@@ -31,10 +31,16 @@ module.exports = {
             throw new ForbiddenError("You don't have permission to delete the note");
         }
         try {
-         await note.remove();
+             await models.Note.findOneAndUpdate(
+                { _id: id },
+                { isRemoved: true },
+                { new: true }
+            );
             return true;
+            
         } catch (err) {
-            return false
+            console.error(`Error removing the note: ${err.message}`);
+            return false;
         }
     },
     updateNote: async (parent, { content, id }, { models, user }) => {
