@@ -20,6 +20,7 @@ module.exports = {
         //硬上限 若未傳遞游標則預設查詢是空的
         const limit = 10;
         let hasNextPage = false;
+        //如果沒有游標那預設回傳空的 找出最新的筆記
         let cursorQuery = {};
 
         //如果有游標 將搜尋id小於游標的筆記
@@ -28,17 +29,18 @@ module.exports = {
         }
 
         // 在db中尋找限制 +1 個筆記、反序排列
-        let notes = await models.Note.find(cursorQuery)
+        let notes = await models.Note.find({ ...cursorQuery, isRemoved: false })
         .sort({ _id: -1 })
         .limit(limit + 1);
 
         //如果尋找的筆記數量超過限制 將hasNextPage設為true並將筆記縮減至上限
+        
         if (notes.length > limit) { 
             hasNextPage = true;
             notes = notes.slice(0, -1);
         }
         //新游標將是筆記陣列中最後一項的 mongo物件id
-        const newCursor = notes[notes.length -1]._id;
+        const newCursor = notes[notes.length -1]?._id;
 
         return {
             notes,
