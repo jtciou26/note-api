@@ -19,6 +19,7 @@ module.exports = gql`
         username: String!
         email: String!
         avatar: String
+        createdAt: DateTime!
         notes: [Note!]!
         favorites: [Note!]!
     }
