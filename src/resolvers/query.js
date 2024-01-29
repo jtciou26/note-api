@@ -23,14 +23,23 @@ module.exports = {
         //如果沒有游標那預設回傳空的 找出最新的筆記
         let cursorQuery = {};
 
-        //如果有游標 將搜尋id小於游標的筆記
+        //如果有游標 將搜尋id小於游標的筆記 cursorQuery = { _id: { $lt: cursor } };
+        // 改用 updatedAt 排序
         if (cursor) {
-            cursorQuery = { _id: { $lt: cursor } };
+            const cursor = new Date().toISOString();
+
+            const cursorDate = new Date(cursor);
+
+            if (isNaN(cursorDate.getTime())) {
+                throw new Error('Invalid cursor date format');
+              }
+
+            cursorQuery = { updatedAt: { $lt: cursorDate } };
         }
 
         // 在db中尋找限制 +1 個筆記、反序排列
         let notes = await models.Note.find({ ...cursorQuery, isRemoved: false })
-        .sort({ _id: -1 })
+        .sort({ updatedAt: -1 })
         .limit(limit + 1);
 
         //如果尋找的筆記數量超過限制 將hasNextPage設為true並將筆記縮減至上限
@@ -40,7 +49,7 @@ module.exports = {
             notes = notes.slice(0, -1);
         }
         //新游標將是筆記陣列中最後一項的 mongo物件id
-        const newCursor = notes[notes.length - 1]?._id;
+        const newCursor = notes[notes.length - 1]?.updatedAt;
 
         return {
             notes,
