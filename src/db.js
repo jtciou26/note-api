@@ -4,13 +4,15 @@ const mongoose = require('mongoose');
 module.exports = {
   connect: DB_HOST => {
     // Use the Mongo driver's updated URL string parser
-    mongoose.set('useNewUrlParser', true);
+    // Remove the below lines mongoose 6: https://stackoverflow.com/questions/66460027/invalid-option-in-mongoose
+    //mongoose.set('useNewUrlParser', true);
     // Use `findOneAndUpdate()` in place of findAndModify()
-    mongoose.set('useFindAndModify', false);
+    //mongoose.set('useFindAndModify', false);
     // Use `createIndex()` in place of `ensureIndex()`
-    mongoose.set('useCreateIndex', true);
+    // mongoose.set('useCreateIndex', true);
     // Use the new server discovery & monitoring engine
-    mongoose.set('useUnifiedTopology', true);
+    // mongoose.set('useUnifiedTopology', true);
+
     // Connect to the DB
     mongoose.connect(DB_HOST);
     // Log an error if we fail to connect

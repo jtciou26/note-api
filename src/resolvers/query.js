@@ -17,6 +17,7 @@ module.exports = {
         return await models.User.findById(user.id);
     },
     noteFeed: async (parent, { cursor }, { models }) => {
+        //ref: facil src/db/data/post/model.js
         //硬上限 若未傳遞游標則預設查詢是空的
         const limit = 10;
         let hasNextPage = false;
