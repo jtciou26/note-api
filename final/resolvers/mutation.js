@@ -120,7 +120,7 @@ module.exports = {
   },
   signUp: async (parent, { username, email, password }, { models }) => {
     // normalize email address
-    email = email.trim().toLowerCase();
+    email = email..toLowerCase();
     // hash the password
     const hashed = await bcrypt.hash(password, 10);
     // create the gravatar url
