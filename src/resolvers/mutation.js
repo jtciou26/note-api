@@ -75,8 +75,8 @@ module.exports = {
     const avatar = gravatar(email);
     try {
       const user = await models.User.create({
-        username,
         email,
+        username,
         avatar,
         password: hashed
       });
@@ -153,5 +153,56 @@ module.exports = {
         }
       );
     }
+  },
+  updateUserName: async (parent, { username, id }, { models }) => {
+    try {
+      return await models.User.findOneAndUpdate(
+        {
+          _id: id
+        },
+        {
+          $set: {
+            username
+          }
+        },
+        {
+          new: true
+        }
+      );
+    } catch (err) {
+      throw new Error('Username already exists');
+    }
   }
 };
+
+/**
+ schema.static('updateOriginAndClonedSlidesTitle', async function handler(
+  slidesId,
+  title
+) {
+  const [slides] = await Promise.all([
+    this.findByIdAndUpdate(
+      slidesId,
+      { $set: { title: title.trim() } },
+      { new: true }
+    ).lean(),
+    this.updateMany(
+      {
+        originId: slidesId,
+        removedAt: null
+      },
+      { $set: { title: title.trim() } }
+    )
+  ]);
+  return slides;
+});
+
+async function updateSlidesTitle(_, { slidesId, title }) {
+  const slides = await mongoose
+    .model('Slides')
+    .updateOriginAndClonedSlidesTitle(slidesId, title);
+  return slides;
+}
+ * 
+ * 
+ */
