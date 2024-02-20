@@ -154,7 +154,7 @@ module.exports = {
       );
     }
   },
-  updateUserName: async (parent, { username, id }, { models }) => {
+  updateUsername: async (parent, { username, id }, { models }) => {
     try {
       return await models.User.findOneAndUpdate(
         {
@@ -174,35 +174,3 @@ module.exports = {
     }
   }
 };
-
-/**
- schema.static('updateOriginAndClonedSlidesTitle', async function handler(
-  slidesId,
-  title
-) {
-  const [slides] = await Promise.all([
-    this.findByIdAndUpdate(
-      slidesId,
-      { $set: { title: title.trim() } },
-      { new: true }
-    ).lean(),
-    this.updateMany(
-      {
-        originId: slidesId,
-        removedAt: null
-      },
-      { $set: { title: title.trim() } }
-    )
-  ]);
-  return slides;
-});
-
-async function updateSlidesTitle(_, { slidesId, title }) {
-  const slides = await mongoose
-    .model('Slides')
-    .updateOriginAndClonedSlidesTitle(slidesId, title);
-  return slides;
-}
- * 
- * 
- */

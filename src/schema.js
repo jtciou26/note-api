@@ -47,6 +47,6 @@ module.exports = gql`
     signUp(username: String!, email: String!, password: String!): String!
     signIn(username: String, email: String, password: String!): String!
     toggleFavorite(id: ID!): Note!
-    updateUserName(id: ID!, username: String!): User!
+    updateUsername(id: ID!, username: String!): User!
   }
 `;
