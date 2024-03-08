@@ -63,3 +63,4 @@ typings/
 # VSCode settings
 .vscode/
 final/resolvers/mutation.js
+src/test.js
