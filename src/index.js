@@ -1,12 +1,11 @@
 const express = require('express');
-const path = require('path');
 const { ApolloServer } = require('apollo-server-express');
 const jwt = require('jsonwebtoken');
 const helmet = require('helmet');
 const cors = require('cors');
+const fetch = require('node-fetch');
 const depthLimit = require('graphql-depth-limit');
 const { createComplexityLimitRule } = require('graphql-validation-complexity');
-
 require('dotenv').config();
 
 const db = require('./db');
@@ -18,7 +17,7 @@ const resolvers = require('./resolvers');
 const port = process.env.PORT || 4000;
 const DB_HOST = process.env.DB_HOST;
 
-const app = express(); // express.js框架
+const app = express();
 
 db.connect(DB_HOST);
 
@@ -27,6 +26,18 @@ app.use(helmet());
 // CORS middleware
 app.use(cors());
 
+app.get('/metadata', async (req, res) => {
+  const { url } = req.query;
+
+  try {
+    const response = await fetch(url);
+    const data = await response.text();
+    res.send(data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send('Error fetching metadata.');
+  }
+});
 
 // get the user info from a JWT
 const getUser = token => {
@@ -50,24 +61,20 @@ const server = new ApolloServer({
   validationRules: [depthLimit(5), createComplexityLimitRule(1000)],
   context: async ({ req }) => {
     try {
-    // get the user token from the headers 從標頭取得使用者權杖
-    const token = req.headers.authorization;
-    // try to retrieve a user with the token 嘗試使用權杖擷取使用者
-    const user = getUser(token);
-    // add the db models and the user to the context 將db模型和使用者新增至context
-    return { models, user };
-  } catch (error) {
-    console.error('Error in context function:', error);
-    throw error; // rethrow the error to propagate it
-  };
-}
+      // get the user token from the headers 從標頭取得使用者權杖
+      const token = req.headers.authorization;
+      // try to retrieve a user with the token 嘗試使用權杖擷取使用者
+      const user = getUser(token);
+      // add the db models and the user to the context 將db模型和使用者新增至context
+      return { models, user };
+    } catch (error) {
+      console.error('Error in context function:', error);
+      throw error; // rethrow the error to propagate it
+    }
+  }
 });
 
 // Apply the Apollo GraphQL middleware and set the path to /api
 server.applyMiddleware({ app, path: '/api' });
 
-app.listen(port, () =>
-  console.log(
-    `GraphQL Server running at http://localhost:${port}${server.graphqlPath}`
-  )
-);
+app.listen(port, () => console.log(`Server is running on port ${port}`));
