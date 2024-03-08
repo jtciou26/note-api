@@ -3,7 +3,8 @@ const { ApolloServer } = require('apollo-server-express');
 const jwt = require('jsonwebtoken');
 const helmet = require('helmet');
 const cors = require('cors');
-const fetch = require('node-fetch');
+const fetch = (...args) =>
+  import('node-fetch').then(({ default: fetch }) => fetch(...args));
 const depthLimit = require('graphql-depth-limit');
 const { createComplexityLimitRule } = require('graphql-validation-complexity');
 require('dotenv').config();
