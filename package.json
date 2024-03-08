@@ -44,6 +44,7 @@
     "mongodb": "4.1.1",
     "mongoose": "6.0.0",
     "nodemon": "1.18.7",
+    "node-fetch": "2.5.0",
     "passport": "0.4.0",
     "passport-github2": "0.1.11",
     "react-helmet": "^6.1.0"
@@ -53,7 +54,6 @@
     "eslint-config-prettier": "4.0.0",
     "eslint-plugin-prettier": "3.0.1",
     "faker": "4.1.0",
-    "node-fetch": "2.5.0",
     "prettier": "1.18.2"
   }
 }
