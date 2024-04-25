@@ -52,10 +52,10 @@ module.exports = {
   },
   searchNotes: async (_, { keyword }, { models }) => {
     return await models.Note.find(
-      { $text: { $search: keyword } },
+      { $text: { $search: keyword }, isRemoved: false },
       { score: { $meta: 'textScore' } }
     )
       .sort({ score: { $meta: 'textScore' } })
-      .limit(100);
+      .limit(10);
   }
 };
