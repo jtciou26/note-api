@@ -55,11 +55,11 @@ const getUser = token => {
 // Apollo Server setup
 // updated to include `validationRules`
 const server = new ApolloServer({
-  typeDefs,
-  resolvers,
-  introspection: true,
-  playground: true,
-  validationRules: [depthLimit(5), createComplexityLimitRule(1000)],
+  typeDefs, // GraphQL schema type definitions
+  resolvers, // The corresponding resolvers for schema
+  introspection: true, // Enables introspection (querying the schema) in the GraphQL playground
+  playground: true, // Enables the GraphQL playground for interactive exploration
+  validationRules: [depthLimit(5), createComplexityLimitRule(1000)], // Custom validation rules (such as depth limits and complexity limits)
   context: async ({ req }) => {
     try {
       // get the user token from the headers 從標頭取得使用者權杖
