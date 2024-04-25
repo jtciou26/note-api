@@ -56,6 +56,6 @@ module.exports = {
       { score: { $meta: 'textScore' } }
     )
       .sort({ score: { $meta: 'textScore' } })
-      .limit(100);
+      .limit(10);
   }
 };
