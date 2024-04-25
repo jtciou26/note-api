@@ -49,5 +49,13 @@ module.exports = {
       cursor: newCursor,
       hasNextPage
     };
+  },
+  searchNotes: async (_, { keyword }, { models }) => {
+    return await models.Note.find(
+      { $text: { $search: keyword } },
+      { score: { $meta: 'textScore' } }
+    )
+      .sort({ score: { $meta: 'textScore' } })
+      .limit(100);
   }
 };

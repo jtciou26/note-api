@@ -38,6 +38,7 @@ module.exports = gql`
     users: [User!]!
     me: User!
     noteFeed(cursor: String): NoteFeed
+    searchNotes(keyword: String!): [Note]
   }
 
   type Mutation {
