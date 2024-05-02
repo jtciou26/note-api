@@ -55,7 +55,7 @@ module.exports = {
       { $text: { $search: keyword }, isRemoved: false },
       { score: { $meta: 'textScore' } }
     )
-      .sort({ score: { $meta: 'textScore' } }, { updatedAt: -1 })
+      .sort({ score: { $meta: 'textScore' }, updatedAt: -1 })
       .limit(100);
   }
 };
