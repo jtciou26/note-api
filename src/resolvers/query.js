@@ -19,7 +19,7 @@ module.exports = {
   noteFeed: async (parent, { cursor }, { models }) => {
     //ref: facil src/db/data/post/model.js
     //硬上限 若未傳遞游標則預設查詢是空的
-    const limit = 10;
+    const limit = 20;
     let hasNextPage = false;
     //如果沒有游標那預設回傳空的 找出最新的筆記
     let cursorQuery = {};
@@ -54,6 +54,12 @@ module.exports = {
     return await models.Note.find(
       { $text: { $search: keyword }, isRemoved: false },
       { score: { $meta: 'textScore' } }
+<<<<<<< mynotes
+    )
+      .sort({ score: { $meta: 'textScore' }, updatedAt: -1 })
+      .limit(100);
+=======
     ).sort({ score: { $meta: 'textScore' }, updatedAt: -1 }).limit(100);
+>>>>>>> master
   }
 };
