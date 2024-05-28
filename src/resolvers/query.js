@@ -54,12 +54,8 @@ module.exports = {
     return await models.Note.find(
       { $text: { $search: keyword }, isRemoved: false },
       { score: { $meta: 'textScore' } }
-<<<<<<< mynotes
     )
       .sort({ score: { $meta: 'textScore' }, updatedAt: -1 })
       .limit(100);
-=======
-    ).sort({ score: { $meta: 'textScore' }, updatedAt: -1 }).limit(100);
->>>>>>> master
   }
 };
