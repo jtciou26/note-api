@@ -20,7 +20,7 @@ module.exports = gql`
     email: String!
     avatar: String
     createdAt: DateTime!
-    notes: [Note!]!
+    notes(cursor: String): NoteFeed!
     favorites: [Note!]!
   }
 
