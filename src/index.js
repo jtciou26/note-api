@@ -13,6 +13,7 @@ const db = require('./db');
 const models = require('./models');
 const typeDefs = require('./schema');
 const resolvers = require('./resolvers');
+const { eventLogger } = require('./util/eventLogger');
 
 // Run our server on a port specified in our .env file or port 4000
 const port = process.env.PORT || 4000;
@@ -26,6 +27,16 @@ db.connect(DB_HOST);
 app.use(helmet());
 // CORS middleware
 app.use(cors());
+
+// Middleware to capture user context for event logging
+app.use((req, res, next) => {
+  req.userContext = {
+    ipAddress: req.ip || req.connection.remoteAddress || req.headers['x-forwarded-for'],
+    userAgent: req.headers['user-agent'],
+    userId: null // Will be set after authentication
+  };
+  next();
+});
 
 app.get('/metadata', async (req, res) => {
   const { url } = req.query;
@@ -66,11 +77,18 @@ const server = new ApolloServer({
       const token = req.headers.authorization;
       // try to retrieve a user with the token 嘗試使用權杖擷取使用者
       const user = getUser(token);
-      // add the db models and the user to the context 將db模型和使用者新增至context
-      return { models, user };
+
+      // Update user context with authenticated user ID
+      if (req.userContext && user) {
+        req.userContext.userId = user.id;
+      }
+
+      // add the db models, user, and userContext to the context 將db模型和使用者新增至context
+      return { models, user, userContext: req.userContext, eventLogger };
     } catch (error) {
       console.error('Error in context function:', error);
-      throw error; // rethrow the error to propagate it
+      // Still include userContext and eventLogger even if user auth fails
+      return { models, user: null, userContext: req.userContext, eventLogger };
     }
   }
 });

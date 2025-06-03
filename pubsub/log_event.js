@@ -18,7 +18,7 @@ class NotesEventLogger {
       // Get or create the topic
       const [topics] = await pubsub.getTopics();
       const existingTopic = topics.find(topic => topic.name.includes(TOPIC_NAME));
-      
+
       if (existingTopic) {
         this.topic = existingTopic;
       } else {
@@ -38,29 +38,89 @@ class NotesEventLogger {
     }
 
     try {
+      // Convert noteData and custom parameters to the params array format
+      const params = [];
+
+      // Add note data to params
+      if (noteData) {
+        Object.entries(noteData).forEach(([key, value]) => {
+          const param = { key };
+
+          if (value === null || value === undefined) {
+            // Skip null/undefined values
+            return;
+          }
+
+          // Determine the appropriate value type based on the value
+          if (typeof value === 'string') {
+            param.string_value = value;
+          } else if (typeof value === 'number' && Number.isInteger(value)) {
+            param.int_value = value;
+          } else if (typeof value === 'number') {
+            param.float_value = value;
+          } else if (typeof value === 'boolean') {
+            param.bool_value = value;
+          } else if (value instanceof Date) {
+            param.timestamp_value = value.toISOString();
+          } else if (typeof value === 'object') {
+            param.json_value = JSON.stringify(value);
+          } else {
+            // Default to string for other types
+            param.string_value = String(value);
+          }
+
+          params.push(param);
+        });
+      }
+
+      // Add custom parameters to params
+      if (userContext.customParams) {
+        Object.entries(userContext.customParams).forEach(([key, value]) => {
+          const param = { key };
+
+          if (value === null || value === undefined) {
+            return;
+          }
+
+          if (typeof value === 'string') {
+            param.string_value = value;
+          } else if (typeof value === 'number' && Number.isInteger(value)) {
+            param.int_value = value;
+          } else if (typeof value === 'number') {
+            param.float_value = value;
+          } else if (typeof value === 'boolean') {
+            param.bool_value = value;
+          } else if (value instanceof Date) {
+            param.timestamp_value = value.toISOString();
+          } else if (typeof value === 'object') {
+            param.json_value = JSON.stringify(value);
+          } else {
+            param.string_value = String(value);
+          }
+
+          params.push(param);
+        });
+      }
+
       const eventData = {
         event_id: this.generateEventId(),
-        event_name: eventName,
+        event: eventName,
         timestamp: new Date().toISOString(),
-        user_id: userContext.userId || noteData.author,
-        ip_address: userContext.ipAddress,
-        device_category: this.getDeviceCategory(userContext.userAgent),
-        operating_system: this.getOperatingSystem(userContext.userAgent),
-        browser: this.getBrowser(userContext.userAgent),
-        country: userContext.country,
-        source: 'notes_app',
-        
-        // Include all the MongoDB note fields
-        ...noteData,
-        
-        // Additional custom parameters
-        customParams: userContext.customParams || {}
+        user_id: userContext.userId || noteData?.author || null,
+        params: params,
+        user_props: {
+          device_category: this.getDeviceCategory(userContext.userAgent),
+          operating_system: this.getOperatingSystem(userContext.userAgent),
+          browser: this.getBrowser(userContext.userAgent),
+          country: userContext.country || null,
+          ip_address: userContext.ipAddress || null
+        }
       };
 
       const message = Buffer.from(JSON.stringify(eventData));
       const messageId = await this.topic.publishMessage({ data: message });
       console.log(`Event '${eventName}' published with ID: ${messageId}`);
-      
+
     } catch (error) {
       console.error('Error publishing event to Pub/Sub:', error);
     }
@@ -101,7 +161,7 @@ class NotesEventLogger {
 
   getDeviceCategory(userAgent) {
     if (!userAgent) return null;
-    
+
     const ua = userAgent.toLowerCase();
     if (ua.includes('mobile') || ua.includes('android') || ua.includes('iphone')) {
       return 'mobile';
@@ -113,27 +173,27 @@ class NotesEventLogger {
 
   getOperatingSystem(userAgent) {
     if (!userAgent) return null;
-    
+
     const ua = userAgent.toLowerCase();
     if (ua.includes('windows')) return 'Windows';
     if (ua.includes('macintosh') || ua.includes('mac os')) return 'macOS';
     if (ua.includes('linux')) return 'Linux';
     if (ua.includes('android')) return 'Android';
     if (ua.includes('iphone') || ua.includes('ipad')) return 'iOS';
-    
+
     return 'Unknown';
   }
 
   getBrowser(userAgent) {
     if (!userAgent) return null;
-    
+
     const ua = userAgent.toLowerCase();
     if (ua.includes('chrome') && !ua.includes('edg')) return 'Chrome';
     if (ua.includes('firefox')) return 'Firefox';
     if (ua.includes('safari') && !ua.includes('chrome')) return 'Safari';
     if (ua.includes('edg')) return 'Edge';
     if (ua.includes('opera')) return 'Opera';
-    
+
     return 'Unknown';
   }
 }

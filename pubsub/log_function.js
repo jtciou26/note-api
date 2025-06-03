@@ -12,21 +12,22 @@ exports.processPubSubToBigQuery = async (message, context) => {
   try {
     // Decode the Pub/Sub message
     const eventData = JSON.parse(Buffer.from(message.data, 'base64').toString());
-    
+
     console.log('Received event:', eventData);
-    
-    // Transform data to GA4-style format
+
+    // Transform data to match BigQuery schema format
     const row = transformToGA4Format(eventData);
-    
+
     // Insert the row into BigQuery
     const dataset = bigquery.dataset(DATASET_ID);
     const table = dataset.table(TABLE_ID);
-    
+
     await table.insert([row]);
-    console.log(`Successfully inserted event: ${eventData.event_name}`);
-    
+    console.log(`Successfully inserted event: ${row.event} (ID: ${row.event_id})`);
+
   } catch (error) {
     console.error('Error processing Pub/Sub message:', error);
+    console.error('Message data:', JSON.stringify(message, null, 2));
     throw error;
   }
 };
@@ -36,87 +37,99 @@ exports.processPubSubToBigQuery = async (message, context) => {
  */
 function transformToGA4Format(data) {
   const params = [];
-  
-  // Transform MongoDB fields to GA4 params
-  if (data._id) {
-    params.push({ key: '_id', string_value: data._id });
-  }
-  
-  if (data.author) {
-    params.push({ key: 'author', string_value: data.author });
-  }
-  
-  if (data.content) {
-    params.push({ key: 'content', string_value: data.content });
-  }
-  
-  if (data.createdAt) {
-    params.push({ 
-      key: 'createdAt', 
-      timestamp_value: new Date(data.createdAt).toISOString() 
-    });
-  }
-  
-  if (data.updatedAt) {
-    params.push({ 
-      key: 'updatedAt', 
-      timestamp_value: new Date(data.updatedAt).toISOString() 
-    });
-  }
-  
-  if (data.isRemoved !== undefined) {
-    params.push({ 
-      key: 'isRemoved', 
-      bool_value: data.isRemoved === 'true' || data.isRemoved === true 
-    });
-  }
-  
-  if (data.favoriteCount !== undefined) {
-    params.push({ key: 'favoriteCount', int_value: parseInt(data.favoriteCount) });
-  }
-  
-  if (data.favoritedBy) {
-    params.push({ key: 'favoritedBy', json_value: data.favoritedBy });
-  }
-  
-  // Add any custom parameters from the event
-  if (data.customParams) {
-    Object.entries(data.customParams).forEach(([key, value]) => {
-      const param = { key };
-      
-      if (typeof value === 'string') {
-        param.string_value = value;
-      } else if (typeof value === 'number') {
-        if (Number.isInteger(value)) {
+
+  // If data already has params array (from the updated log_event.js), use it
+  if (data.params && Array.isArray(data.params)) {
+    params.push(...data.params);
+  } else {
+    // Legacy support: Transform MongoDB fields to GA4 params
+    const fieldsToTransform = [
+      '_id', 'author', 'content', 'title', 'tags', 'category',
+      'isRemoved', 'favoriteCount', 'favoritedBy', 'source'
+    ];
+
+    fieldsToTransform.forEach(field => {
+      if (data[field] !== undefined && data[field] !== null) {
+        const param = { key: field };
+        const value = data[field];
+
+        if (typeof value === 'string') {
+          param.string_value = value;
+        } else if (typeof value === 'number' && Number.isInteger(value)) {
           param.int_value = value;
-        } else {
+        } else if (typeof value === 'number') {
           param.float_value = value;
+        } else if (typeof value === 'boolean') {
+          param.bool_value = value;
+        } else if (value instanceof Date) {
+          param.timestamp_value = value.toISOString();
+        } else if (typeof value === 'object') {
+          param.json_value = JSON.stringify(value);
+        } else {
+          param.string_value = String(value);
         }
-      } else if (typeof value === 'boolean') {
-        param.bool_value = value;
-      } else if (value instanceof Date) {
-        param.timestamp_value = value.toISOString();
-      } else {
-        param.json_value = value;
+
+        params.push(param);
       }
-      
-      params.push(param);
     });
+
+    // Handle date fields specifically
+    if (data.createdAt) {
+      params.push({
+        key: 'createdAt',
+        timestamp_value: new Date(data.createdAt).toISOString()
+      });
+    }
+
+    if (data.updatedAt) {
+      params.push({
+        key: 'updatedAt',
+        timestamp_value: new Date(data.updatedAt).toISOString()
+      });
+    }
+
+    // Add any custom parameters from the event
+    if (data.customParams) {
+      Object.entries(data.customParams).forEach(([key, value]) => {
+        if (value !== null && value !== undefined) {
+          const param = { key };
+
+          if (typeof value === 'string') {
+            param.string_value = value;
+          } else if (typeof value === 'number' && Number.isInteger(value)) {
+            param.int_value = value;
+          } else if (typeof value === 'number') {
+            param.float_value = value;
+          } else if (typeof value === 'boolean') {
+            param.bool_value = value;
+          } else if (value instanceof Date) {
+            param.timestamp_value = value.toISOString();
+          } else if (typeof value === 'object') {
+            param.json_value = JSON.stringify(value);
+          } else {
+            param.string_value = String(value);
+          }
+
+          params.push(param);
+        }
+      });
+    }
   }
-  
-  // Build the GA4-style row
+
+  // Build the row according to the new schema
   return {
     event_id: data.event_id || generateEventId(),
-    event_name: data.event_name || 'note_action',
-    timestamp: new Date(data.event_timestamp || Date.now()).toISOString(),
+    event: data.event || data.event_name || 'note_action',
+    timestamp: data.timestamp || new Date(data.event_timestamp || Date.now()).toISOString(),
     user_id: data.user_id || data.author || null,
     params: params,
-    device_category: data.device_category || null,
-    operating_system: data.operating_system || null,
-    browser: data.browser || null,
-    country: data.country || null,
-    ip_address: data.ip_address || null,
-    source: data.source || 'notes_app'
+    user_props: data.user_props || {
+      device_category: data.device_category || null,
+      operating_system: data.operating_system || null,
+      browser: data.browser || null,
+      country: data.country || null,
+      ip_address: data.ip_address || null
+    }
   };
 }
 

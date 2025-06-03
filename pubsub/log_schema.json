@@ -92,45 +92,46 @@
     ]
   },
   {
-    "name": "device_category",
+    "name": "user_props",
     "mode": "NULLABLE",
-    "type": "STRING",
+    "type": "RECORD",
     "description": "",
-    "fields": []
-  },
-  {
-    "name": "operating_system",
-    "mode": "NULLABLE",
-    "type": "STRING",
-    "description": "",
-    "fields": []
-  },
-  {
-    "name": "browser",
-    "mode": "NULLABLE",
-    "type": "STRING",
-    "description": "",
-    "fields": []
-  },
-  {
-    "name": "country",
-    "mode": "NULLABLE",
-    "type": "STRING",
-    "description": "",
-    "fields": []
-  },
-  {
-    "name": "ip_address",
-    "mode": "NULLABLE",
-    "type": "STRING",
-    "description": "",
-    "fields": []
-  },
-  {
-    "name": "source",
-    "mode": "NULLABLE",
-    "type": "STRING",
-    "description": "",
-    "fields": []
+    "fields": [
+      {
+        "name": "device_category",
+        "mode": "NULLABLE",
+        "type": "STRING",
+        "description": "",
+        "fields": []
+      },
+      {
+        "name": "operating_system",
+        "mode": "NULLABLE",
+        "type": "STRING",
+        "description": "",
+        "fields": []
+      },
+      {
+        "name": "browser",
+        "mode": "NULLABLE",
+        "type": "STRING",
+        "description": "",
+        "fields": []
+      },
+      {
+        "name": "country",
+        "mode": "NULLABLE",
+        "type": "STRING",
+        "description": "",
+        "fields": []
+      },
+      {
+        "name": "ip_address",
+        "mode": "NULLABLE",
+        "type": "STRING",
+        "description": "",
+        "fields": []
+      }
+    ]
   }
 ]

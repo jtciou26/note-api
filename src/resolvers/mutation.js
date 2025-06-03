@@ -10,17 +10,47 @@ require('dotenv').config();
 const gravatar = require('../util/gravatar');
 
 module.exports = {
-  newNote: async (parent, args, { models, user }) => {
+  newNote: async (parent, args, { models, user, userContext, eventLogger }) => {
     if (!user) {
       throw new AuthenticationError('You must be signed in');
     }
-    return await models.Note.create({
-      content: args.content,
-      author: mongoose.Types.ObjectId(user.id),
-      favoriteCount: 0
-    });
+
+    try {
+      const note = await models.Note.create({
+        content: args.content,
+        author: mongoose.Types.ObjectId(user.id),
+        favoriteCount: 0
+      });
+
+      // Log the note creation event to pub/sub
+      if (eventLogger) {
+        try {
+          await eventLogger.logNoteCreated(
+            {
+              id: note._id.toString(),
+              content: note.content,
+              author: note.author.toString(),
+              createdAt: note.createdAt,
+              favoriteCount: note.favoriteCount
+            },
+            {
+              ...userContext,
+              userId: user.id
+            }
+          );
+        } catch (logError) {
+          // Don't fail the mutation if logging fails, just log the error
+          console.error('Failed to log note creation event:', logError);
+        }
+      }
+
+      return note;
+    } catch (error) {
+      console.error('Error creating note:', error);
+      throw error;
+    }
   },
-  deleteNote: async (parent, { id }, { models, user }) => {
+  deleteNote: async (parent, { id }, { models, user, userContext, eventLogger }) => {
     if (!user) {
       throw new AuthenticationError('You must be signed in');
     }
@@ -36,13 +66,33 @@ module.exports = {
         { isRemoved: true },
         { new: true }
       );
+
+      // Log the note deletion event to pub/sub
+      if (eventLogger && note) {
+        try {
+          await eventLogger.logNoteDeleted(
+            {
+              id: note._id.toString(),
+              author: note.author.toString(),
+              content: note.content
+            },
+            {
+              ...userContext,
+              userId: user.id
+            }
+          );
+        } catch (logError) {
+          console.error('Failed to log note deletion event:', logError);
+        }
+      }
+
       return true;
     } catch (err) {
       console.error(`Error removing the note: ${err.message}`);
       return false;
     }
   },
-  updateNote: async (parent, { content, id }, { models, user }) => {
+  updateNote: async (parent, { content, id }, { models, user, userContext, eventLogger }) => {
     if (!user) {
       throw new AuthenticationError('You must be signed in');
     }
@@ -51,19 +101,46 @@ module.exports = {
       throw new ForbiddenError("You don't have permission to update the note");
     }
 
-    return await models.Note.findOneAndUpdate(
-      {
-        _id: id
-      },
-      {
-        $set: {
-          content
+    try {
+      const updatedNote = await models.Note.findOneAndUpdate(
+        {
+          _id: id
+        },
+        {
+          $set: {
+            content
+          }
+        },
+        {
+          new: true
         }
-      },
-      {
-        new: true
+      );
+
+      // Log the note update event to pub/sub
+      if (eventLogger && updatedNote) {
+        try {
+          await eventLogger.logNoteUpdated(
+            {
+              id: updatedNote._id.toString(),
+              content: updatedNote.content,
+              author: updatedNote.author.toString(),
+              updatedAt: updatedNote.updatedAt
+            },
+            {
+              ...userContext,
+              userId: user.id
+            }
+          );
+        } catch (logError) {
+          console.error('Failed to log note update event:', logError);
+        }
       }
-    );
+
+      return updatedNote;
+    } catch (error) {
+      console.error('Error updating note:', error);
+      throw error;
+    }
   },
   signUp: async (parent, { username, email, password }, { models }) => {
     // normalize email address

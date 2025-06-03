@@ -27,6 +27,7 @@
   "author": "Adam Scott",
   "license": "MIT",
   "dependencies": {
+    "@google-cloud/pubsub": "^4.0.0",
     "apollo-server-express": "2.4.0",
     "bcrypt": "^5.1.1",
     "cors": "2.8.5",

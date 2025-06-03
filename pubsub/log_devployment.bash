@@ -1,5 +1,5 @@
 # Step 1: Set up Google Cloud environment
-gcloud config set project YOUR_PROJECT_ID
+gcloud config set project toegazer
 gcloud auth login
 
 # Step 2: Enable required APIs
@@ -8,7 +8,7 @@ gcloud services enable pubsub.googleapis.com
 gcloud services enable bigquery.googleapis.com
 
 # Step 3: Create Pub/Sub topic (if not done programmatically)
-gcloud pubsub topics create api-logs
+gcloud pubsub topics create api-log
 
 # Step 4: Create BigQuery dataset and table
 bq mk --dataset --description "Dataset for web service API logs" YOUR_PROJECT_ID:web_logs
