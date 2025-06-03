@@ -8,159 +8,191 @@ const DATASET_ID = 'logs';
 const TABLE_ID = 'events';
 
 /**
- * Cloud Function triggered by Pub/Sub messages
- * @param {object} message The Pub/Sub message
- * @param {object} context The event context
+ * Cloud Run function triggered by Pub/Sub messages
+ * Handles HTTP POST requests containing Pub/Sub message data
  */
-exports.logEventToBigQuery = async (message, context) => {
+exports.pubsubToBigQuery = async (req, res) => {
     try {
-        // Decode the Pub/Sub message
-        const messageData = message.data
-            ? JSON.parse(Buffer.from(message.data, 'base64').toString())
-            : {};
-
-        console.log('Received message:', messageData);
-
-        // Validate required fields
-        if (!messageData.event_name || !messageData.timestamp) {
-            console.error('Invalid message format - missing required fields');
-            return;
+        // Validate the request
+        if (req.method !== 'POST') {
+            console.error('Only POST requests are accepted');
+            return res.status(405).send('Only POST requests are accepted');
         }
 
-        // Prepare the row for BigQuery insertion
-        const row = {
-            event_id: messageData.event_id || null,
-            event_name: messageData.event_name,
-            timestamp: messageData.timestamp,
-            user_id: messageData.user_id || null,
-            event_data: messageData.event_data ? JSON.stringify(messageData.event_data) : null,
-            user_context: messageData.user_context ? JSON.stringify(messageData.user_context) : null,
-            processed_at: new Date().toISOString()
-        };
+        // Validate that this is a valid Pub/Sub message
+        if (!req.body || !req.body.message) {
+            console.error('Bad Request: no Pub/Sub message received');
+            return res.status(400).send('Bad Request: no Pub/Sub message received');
+        }
 
-        // Insert the row into BigQuery
-        await bigquery
-            .dataset(DATASET_ID)
-            .table(TABLE_ID)
-            .insert([row]);
+        const pubsubMessage = req.body.message;
 
-        console.log(`Successfully inserted event '${messageData.event_name}' into BigQuery`);
+        // Decode the Pub/Sub message data
+        let eventData;
+        try {
+            const messageData = pubsubMessage.data
+                ? Buffer.from(pubsubMessage.data, 'base64').toString()
+                : '{}';
+            eventData = JSON.parse(messageData);
+            console.log('Received event data:', JSON.stringify(eventData, null, 2));
+        } catch (parseError) {
+            console.error('Error parsing message data:', parseError);
+            return res.status(400).send('Invalid JSON in message data');
+        }
+
+        // Validate required fields according to BigQuery schema
+        // Handle both old format (event) and new format (event_name)
+        const eventName = eventData.event || eventData.event_name;
+        if (!eventData.event_id || !eventName || !eventData.timestamp) {
+            console.error('Missing required fields in event data');
+            return res.status(400).send('Missing required fields: event_id, event/event_name, timestamp');
+        }
+
+        // Transform and validate the data for BigQuery insertion
+        const transformedData = transformEventData(eventData);
+
+        // Insert data into BigQuery
+        await insertIntoBigQuery(transformedData);
+
+        console.log(`Successfully processed event: ${eventData.event_id}`);
+        res.status(200).send('Event processed successfully');
 
     } catch (error) {
-        console.error('Error processing message:', error);
-
-        // For debugging - log the full error and message
-        console.error('Full error:', JSON.stringify(error, null, 2));
-        if (message.data) {
-            console.error('Message data:', Buffer.from(message.data, 'base64').toString());
-        }
-
-        // Re-throw to trigger retry
-        throw error;
+        console.error('Error processing Pub/Sub message:', error);
+        res.status(500).send('Internal server error');
     }
 };
 
 /**
- * Transform MongoDB-style data to GA4 event format
+ * Transform event data to match BigQuery schema
  */
-function transformToGA4Format(data) {
-    const params = [];
+function transformEventData(eventData) {
+    const transformed = {
+        event_id: eventData.event_id,
+        event: eventData.event || eventData.event_name, // Handle both formats
+        timestamp: eventData.timestamp,
+        user_id: eventData.user_id || null,
+        params: [],
+        user_props: null
+    };
 
-    // If data already has params array (from the updated log_event.js), use it
-    if (data.params && Array.isArray(data.params)) {
-        params.push(...data.params);
-    } else {
-        // Legacy support: Transform MongoDB fields to GA4 params
-        const fieldsToTransform = [
-            '_id', 'author', 'content', 'title', 'tags', 'category',
-            'isRemoved', 'favoriteCount', 'favoritedBy', 'source'
-        ];
+    // Transform params array if present (old format)
+    if (eventData.params && Array.isArray(eventData.params)) {
+        transformed.params = eventData.params.map(param => {
+            const transformedParam = { key: param.key };
 
-        fieldsToTransform.forEach(field => {
-            if (data[field] !== undefined && data[field] !== null) {
-                const param = { key: field };
-                const value = data[field];
+            // Add only the relevant value field based on what's provided
+            if (param.string_value !== undefined) transformedParam.string_value = param.string_value;
+            if (param.int_value !== undefined) transformedParam.int_value = param.int_value;
+            if (param.float_value !== undefined) transformedParam.float_value = param.float_value;
+            if (param.double_value !== undefined) transformedParam.double_value = param.double_value;
+            if (param.bool_value !== undefined) transformedParam.bool_value = param.bool_value;
+            if (param.timestamp_value !== undefined) transformedParam.timestamp_value = param.timestamp_value;
+            if (param.json_value !== undefined) transformedParam.json_value = param.json_value;
 
-                if (typeof value === 'string') {
-                    param.string_value = value;
-                } else if (typeof value === 'number' && Number.isInteger(value)) {
-                    param.int_value = value;
-                } else if (typeof value === 'number') {
-                    param.float_value = value;
-                } else if (typeof value === 'boolean') {
-                    param.bool_value = value;
-                } else if (value instanceof Date) {
-                    param.timestamp_value = value.toISOString();
-                } else if (typeof value === 'object') {
-                    param.json_value = JSON.stringify(value);
-                } else {
-                    param.string_value = String(value);
-                }
-
-                params.push(param);
-            }
+            return transformedParam;
         });
-
-        // Handle date fields specifically
-        if (data.createdAt) {
-            params.push({
-                key: 'createdAt',
-                timestamp_value: new Date(data.createdAt).toISOString()
-            });
-        }
-
-        if (data.updatedAt) {
-            params.push({
-                key: 'updatedAt',
-                timestamp_value: new Date(data.updatedAt).toISOString()
-            });
-        }
-
-        // Add any custom parameters from the event
-        if (data.customParams) {
-            Object.entries(data.customParams).forEach(([key, value]) => {
-                if (value !== null && value !== undefined) {
-                    const param = { key };
-
-                    if (typeof value === 'string') {
-                        param.string_value = value;
-                    } else if (typeof value === 'number' && Number.isInteger(value)) {
-                        param.int_value = value;
-                    } else if (typeof value === 'number') {
-                        param.float_value = value;
-                    } else if (typeof value === 'boolean') {
-                        param.bool_value = value;
-                    } else if (value instanceof Date) {
-                        param.timestamp_value = value.toISOString();
-                    } else if (typeof value === 'object') {
-                        param.json_value = JSON.stringify(value);
-                    } else {
-                        param.string_value = String(value);
-                    }
-
-                    params.push(param);
-                }
-            });
-        }
     }
 
-    // Build the row according to the new schema
-    return {
-        event_id: data.event_id || generateEventId(),
-        event: data.event || data.event_name || 'note_action',
-        timestamp: data.timestamp || new Date(data.event_timestamp || Date.now()).toISOString(),
-        user_id: data.user_id || data.author || null,
-        params: params,
-        user_props: data.user_props || {
-            device_category: data.device_category || null,
-            operating_system: data.operating_system || null,
-            browser: data.browser || null,
-            country: data.country || null,
-            ip_address: data.ip_address || null
-        }
-    };
+    // Transform event_data object to params array (new format)
+    if (eventData.event_data && typeof eventData.event_data === 'object') {
+        Object.entries(eventData.event_data).forEach(([key, value]) => {
+            if (value === null || value === undefined) {
+                return; // Skip null/undefined values
+            }
+
+            const param = { key };
+
+            // Determine the appropriate value type based on the value
+            if (typeof value === 'string') {
+                param.string_value = value;
+            } else if (typeof value === 'number' && Number.isInteger(value)) {
+                param.int_value = value;
+            } else if (typeof value === 'number') {
+                param.float_value = value;
+            } else if (typeof value === 'boolean') {
+                param.bool_value = value;
+            } else if (value instanceof Date) {
+                param.timestamp_value = value.toISOString();
+            } else if (typeof value === 'object') {
+                param.json_value = JSON.stringify(value);
+            } else {
+                // Default to string for other types
+                param.string_value = String(value);
+            }
+
+            transformed.params.push(param);
+        });
+    }
+
+    // Transform user_props if present (old format)
+    if (eventData.user_props) {
+        transformed.user_props = {
+            device_category: eventData.user_props.device_category || null,
+            operating_system: eventData.user_props.operating_system || null,
+            browser: eventData.user_props.browser || null,
+            country: eventData.user_props.country || null,
+            ip_address: eventData.user_props.ip_address || null
+        };
+    }
+
+    // Transform user_context to user_props (new format)
+    if (eventData.user_context) {
+        transformed.user_props = {
+            device_category: eventData.user_context.device_category || null,
+            operating_system: eventData.user_context.operating_system || null,
+            browser: eventData.user_context.browser || null,
+            country: eventData.user_context.country || null,
+            ip_address: eventData.user_context.ip_address || null
+        };
+    }
+
+    return transformed;
 }
 
-function generateEventId() {
-    return `evt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-} 
+/**
+ * Insert data into BigQuery
+ */
+async function insertIntoBigQuery(data) {
+    try {
+        const dataset = bigquery.dataset(DATASET_ID);
+        const table = dataset.table(TABLE_ID);
+
+        // Insert the row
+        const [insertErrors] = await table.insert([data], {
+            // Skip invalid rows and continue with valid ones
+            skipInvalidRows: false,
+            // Don't ignore unknown values - this helps catch schema mismatches
+            ignoreUnknownValues: false,
+        });
+
+        if (insertErrors && insertErrors.length > 0) {
+            console.error('BigQuery insert errors:', JSON.stringify(insertErrors, null, 2));
+            throw new Error(`BigQuery insert failed: ${insertErrors.map(err => err.message).join(', ')}`);
+        }
+
+        console.log(`Successfully inserted event ${data.event_id} into BigQuery`);
+
+    } catch (error) {
+        console.error('Error inserting into BigQuery:', error);
+
+        // Check if it's a table not found error
+        if (error.message && error.message.includes('Not found: Table')) {
+            console.error(`Table ${DATASET_ID}.${TABLE_ID} not found. Please ensure it exists.`);
+        }
+
+        throw error;
+    }
+}
+
+/**
+ * Health check endpoint for Cloud Run
+ */
+exports.healthCheck = (req, res) => {
+    res.status(200).send('OK');
+};
+
+// For local testing - export the main function with different name for HTTP trigger
+if (process.env.NODE_ENV === 'development') {
+    exports.main = exports.pubsubToBigQuery;
+}
