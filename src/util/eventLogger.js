@@ -1,7 +1,29 @@
 const { PubSub } = require('@google-cloud/pubsub');
 
-// Initialize Pub/Sub client
-const pubsub = new PubSub();
+// Initialize Pub/Sub client with explicit configuration
+let pubsubConfig = {
+    projectId: process.env.GOOGLE_CLOUD_PROJECT_ID || process.env.GCLOUD_PROJECT
+};
+
+// If service account key is provided as environment variable (for Render.com)
+if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
+    try {
+        const credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON);
+        pubsubConfig = {
+            projectId: credentials.project_id || process.env.GOOGLE_CLOUD_PROJECT_ID,
+            credentials: credentials
+        };
+        console.log('Using service account credentials from environment variable');
+    } catch (error) {
+        console.error('Error parsing service account credentials:', error);
+    }
+} else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+    // If service account key file path is provided
+    pubsubConfig.keyFilename = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+    console.log('Using service account credentials from file path');
+}
+
+const pubsub = new PubSub(pubsubConfig);
 
 const TOPIC_NAME = 'event_logs'; // Your topic name
 
